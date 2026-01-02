@@ -1,35 +1,3 @@
-// export function parseArticles(container, $) {
-//   const headers = [];
-//   const articles = [];
-
-//   // заголовки
-//   container.find("table thead th").each((_, th) => {
-//     const header = $(th).text().trim();
-//     if (header) headers.push(header);
-//   });
-
-//   // строки → articles
-//   container.find("table tbody tr").each((_, tr) => {
-//     const article = {};
-
-//     $(tr)
-//       .find("td")
-//       .each((i, td) => {
-//         const key = headers[i];
-//         if (!key) return;
-
-//         article[key] = $(td).text().trim();
-//       });
-
-//     // защита от пустых строк
-//     if (Object.keys(article).length > 0) {
-//       articles.push(article);
-//     }
-//   });
-
-//   return articles;
-// }
-
 export function parseArticles(container, $) {
   const headers = [];
   const rows = [];

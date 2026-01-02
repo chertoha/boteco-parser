@@ -8,6 +8,7 @@ import { createBar } from "./src/progress.js";
 import { sleep } from "./src/sleep.js";
 import { downloadFile } from "./src/download-file.js";
 import { PARSE_PRODUCTS_SLEEP_DELAY } from "./src/constants.js";
+import path from "path";
 
 // const ROOT_URL = "https://www.boteco.com/en/products/";
 const LANGS = ["en", "ru", "pl"];
@@ -215,71 +216,3 @@ function normalizeName(name) {
     .replace(/\s+/g, "_")
     .replace(/[^A-Z0-9_]/g, "");
 }
-
-// async function run() {
-//   console.log("▶ Boteco parser started");
-
-// /**
-//  * models = {
-//  *   A148: {
-//  *     modelName: "A148",
-//  *     assets: { images, drawings, pdfs },
-//  *     articles: { en: [], ru: [], pl: [] },
-//  *     i18n: { en: {}, ru: {}, pl: {} }
-//  *   }
-//  * }
-//  */
-//   const models = {};
-
-//   // 1️⃣ Загружаем главную страницу
-//   const res = await api.get(ROOT_URL);
-//   const $ = cheerio.load(res.data);
-
-//   // 2️⃣ Категории
-//   // const categories = parseCategories($);
-//   const categories = parseCategories($("body"), $);
-
-//   // 3️⃣ Собираем ВСЕ product URLs
-//   const products = [];
-
-//   for (let i = 0; i < categories.length; i++) {
-//     const categoryUrl = categories[i];
-//     log.category(i + 1, categories.length, categoryUrl);
-
-//     const catRes = await api.get(categoryUrl);
-//     await sleep();
-//     const $$ = cheerio.load(catRes.data);
-
-//     const families = parseFamilies($$("body"), $$);
-//     products.push(...families);
-//   }
-
-//   console.log(`▶ Found ${products.length} products`);
-
-//   // 4️⃣ Создаём progress bar
-//   const bar = createBar(products.length);
-
-//   // 5️⃣ Парсим продукты
-//   for (let i = 0; i < products.length; i++) {
-//     const productUrl = products[i];
-//     const code = productUrl.split("/").pop();
-
-//     bar.update({ code });
-//     log.productStart(code);
-
-//     try {
-//       await parseProduct(productUrl);
-//       await sleep();
-//       log.productDone(code);
-//     } catch (err) {
-//       log.productError(code, err);
-//     }
-
-//     bar.increment();
-//   }
-
-//   bar.stop();
-//   console.log("✔ Boteco parser finished");
-// }
-
-// run().catch(console.error);

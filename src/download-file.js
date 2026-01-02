@@ -10,9 +10,6 @@ export async function downloadFile(url, dir) {
   const filename = path.basename(url.split("?")[0]);
   const filepath = path.join(dir, filename);
 
-  // const res = await api.get(url, { responseType: "arraybuffer" });
-  // await fs.writeFile(filepath, res.data);
-
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await api.get(url, { responseType: "arraybuffer" });
