@@ -1,2 +1,3 @@
 export const PARSE_PRODUCTS_SLEEP_DELAY = 500;
 export const DOWNLOAD_FROM_STORAGE_SLEEP_DELAY = 1000;
+export const LANGS = ["en", "ru", "pl"];

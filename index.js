@@ -7,11 +7,11 @@ import { parseProduct } from "./src/parse-product.js";
 import { createBar } from "./src/progress.js";
 import { sleep } from "./src/sleep.js";
 import { downloadFile } from "./src/download-file.js";
-import { PARSE_PRODUCTS_SLEEP_DELAY } from "./src/constants.js";
+import { LANGS, PARSE_PRODUCTS_SLEEP_DELAY } from "./src/constants.js";
 import path from "path";
 
 // const ROOT_URL = "https://www.boteco.com/en/products/";
-const LANGS = ["en", "ru", "pl"];
+// const LANGS = ["en", "ru", "pl"];
 
 /* =========================
    ENTRY POINT
