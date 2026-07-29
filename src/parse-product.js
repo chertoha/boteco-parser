@@ -13,7 +13,15 @@ export async function parseProduct(url, lang) {
     throw new Error(`dettaglio-famiglia not found [${lang}] ${url}`);
   }
 
-  const modelName = container.find("h2.codice-famiglia").first().text().trim();
+  // const modelName = container.find("h2.codice-famiglia").first().text().trim();
+
+  let modelName = container.find(".famiglia-codice h2").first().text().trim();
+
+  // fallback если структура снова поменяется
+  if (!modelName) {
+    const slug = url.split("/").pop();
+    modelName = slug?.split("-")[0]?.toUpperCase();
+  }
 
   if (!modelName) {
     throw new Error(`modelName not found [${lang}] ${url}`);

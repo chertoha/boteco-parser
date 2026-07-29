@@ -2,9 +2,9 @@ export function parseProperties(container, $) {
   const properties = {};
 
   container.find("div.dati > div.mt-2").each((_, block) => {
-    const key = $(block).find("h4").first().text().replace(":", "").trim();
+    const label = $(block).find("h4").first().text().replace(":", "").trim();
 
-    if (!key) return;
+    if (!label) return;
 
     const values = [];
 
@@ -16,11 +16,9 @@ export function parseProperties(container, $) {
         if (text) values.push(text);
       });
 
-    if (values.length === 1) {
-      properties[key] = values[0];
-    } else if (values.length > 1) {
-      properties[key] = values;
-    }
+    if (!values.length) return;
+
+    properties[label] = values.length === 1 ? values[0] : values;
   });
 
   return properties;

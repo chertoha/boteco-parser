@@ -1,7 +1,5 @@
 import * as cheerio from "cheerio";
 import fs from "fs-extra";
-import path from "path";
-
 import { api } from "./src/api.js";
 import { parseCategories } from "./src/parse-categories.js";
 import { parseFamilies } from "./src/parse-families.js";
@@ -10,7 +8,10 @@ import { createBar } from "./src/progress.js";
 import { sleep } from "./src/sleep.js";
 import { downloadFile } from "./src/download-file.js";
 import { LANGS, PARSE_PRODUCTS_SLEEP_DELAY } from "./src/constants.js";
-import { buildCanonicalProduct } from "./src/build-canonical-product.js";
+import path from "path";
+
+// const ROOT_URL = "https://www.boteco.com/en/products/";
+// const LANGS = ["en", "ru", "pl"];
 
 /* =========================
    ENTRY POINT
@@ -19,8 +20,20 @@ import { buildCanonicalProduct } from "./src/build-canonical-product.js";
 async function run() {
   console.log("▶ Boteco parser started");
 
+  /**
+   * models = {
+   *   A148: {
+   *     modelName: "A148",
+   *     assets: { images, drawings, pdfs },
+   *     articles: { en: [], ru: [], pl: [] },
+   *     i18n: { en: {}, ru: {}, pl: {} }
+   *   }
+   * }
+   */
+  const models = {};
+
   for (const lang of LANGS) {
-    await parseLanguage(lang);
+    await parseLanguage(lang, models);
   }
 
   console.log("✔ Boteco parser finished");
@@ -32,7 +45,7 @@ run().catch(console.error);
    LANGUAGE LEVEL
 ========================= */
 
-async function parseLanguage(lang) {
+async function parseLanguage(lang, models) {
   console.log(`\n🌍 Parsing language: ${lang}`);
 
   console.log(`  ↳ loading categories`);
@@ -46,10 +59,24 @@ async function parseLanguage(lang) {
   console.log(`  ↳ parsing ${products.length} products`);
   const bar = lang === LANGS[0] ? createBar(products.length) : null;
 
-  await parseProductsForLanguage(products, lang, bar);
+  await parseProductsForLanguage(products, lang, models, bar);
 
   if (bar) bar.stop();
 }
+// async function parseLanguage(lang, models) {
+//   console.log(`🌍 Parsing language: ${lang}`);
+
+//   const categories = await getCategories(lang);
+//   const products = await getProductsForCategories(categories);
+
+//   console.log(`▶ [${lang}] Found ${products.length} products`);
+
+//   const bar = lang === LANGS[0] ? createBar(products.length) : null;
+
+//   await parseProductsForLanguage(products, lang, models, bar);
+
+//   if (bar) bar.stop();
+// }
 
 /* =========================
    CATEGORIES
@@ -77,21 +104,36 @@ async function getProductsForCategories(categories) {
 
     const res = await api.get(categoryUrl);
     await sleep(PARSE_PRODUCTS_SLEEP_DELAY);
-
     const $ = cheerio.load(res.data);
-    const families = parseFamilies($("body"), $);
 
+    const families = parseFamilies($("body"), $);
     products.push(...families);
   }
 
-  return [...new Set(products)];
+  return products;
 }
+// async function getProductsForCategories(categories) {
+//   const products = [];
+
+//   for (const categoryUrl of categories) {
+//     const res = await api.get(categoryUrl);
+//     await sleep();
+//     const $ = cheerio.load(res.data);
+
+//     const families = parseFamilies($("body"), $);
+//     products.push(...families);
+//   }
+
+//   return products;
+// }
 
 /* =========================
    PRODUCT PARSING
 ========================= */
 
-async function parseProductsForLanguage(products, lang, bar) {
+async function parseProductsForLanguage(products, lang, models, bar) {
+  // console.log(`  ↳ parsing ${products.length} products`);
+
   for (let i = 0; i < products.length; i++) {
     const productUrl = products[i];
     const code = productUrl.split("/").pop();
@@ -102,7 +144,7 @@ async function parseProductsForLanguage(products, lang, bar) {
       const data = await parseProduct(productUrl, lang);
       await sleep(PARSE_PRODUCTS_SLEEP_DELAY);
 
-      await mergeProductData(data, lang);
+      await mergeProductData(data, models, lang);
     } catch (err) {
       console.error(`✖ [${lang}] ${code}:`, err.message);
     }
@@ -115,87 +157,53 @@ async function parseProductsForLanguage(products, lang, bar) {
    DATA MERGE
 ========================= */
 
-async function mergeProductData(data, lang) {
+async function mergeProductData(data, models, lang) {
   const safeModelName = normalizeName(data.modelName);
   const baseDir = `data/${safeModelName}`;
-  const productPath = `${baseDir}/product.json`;
-
   await fs.ensureDir(baseDir);
 
-  let existing = null;
+  if (!models[safeModelName]) {
+    models[safeModelName] = {
+      modelName: data.modelName,
+      assets: {
+        images: data.images.images,
+        drawings: data.images.drawings,
+        pdfs: {},
+      },
+      articles: {},
+      i18n: {},
+    };
 
-  if (await fs.pathExists(productPath)) {
-    existing = await fs.readJson(productPath);
-  }
-
-  const canonical = buildCanonicalProduct(data, lang);
-
-  let finalProduct;
-
-  if (!existing) {
-    // first time creation → download media
-    await downloadAssets(data, baseDir, safeModelName);
-    finalProduct = canonical;
-  } else {
-    finalProduct = mergeProducts(existing, canonical);
-  }
-
-  await fs.writeJson(productPath, finalProduct, { spaces: 2 });
-}
-
-/* =========================
-   MERGE LOGIC
-========================= */
-
-function mergeProducts(existing, incoming) {
-  return {
-    externalProductId: existing.externalProductId,
-    brandExternalId: existing.brandExternalId,
-
-    media: existing.media,
-    articles: existing.articles,
-
-    translations: {
-      ...existing.translations,
-      ...incoming.translations,
-    },
-  };
-}
-
-/* =========================
-   DOWNLOAD ASSETS
-========================= */
-
-async function downloadAssets(data, baseDir, modelCode) {
-  const modelLower = modelCode.toLowerCase();
-
-  if (data.images?.images) {
     for (const img of data.images.images) {
       await downloadFile(img, `${baseDir}/images`);
     }
-  }
 
-  if (data.images?.drawings) {
     for (const dr of data.images.drawings) {
       await downloadFile(dr, `${baseDir}/drawings`);
     }
   }
 
-  // PDF — только если имя содержит modelCode
-  if (data.pdfs?.length) {
-    for (const pdf of data.pdfs) {
-      const filename = path.basename(pdf).toLowerCase();
+  models[safeModelName].articles[lang] = data.articles;
 
-      if (filename.includes(modelLower)) {
-        await downloadFile(pdf, `${baseDir}/pdf`);
-      }
+  models[safeModelName].i18n[lang] = {
+    title: data.title,
+    description: data.description,
+    properties: data.properties,
+  };
+
+  if (data.pdfs[0]) {
+    const pdfPath = `${baseDir}/pdf/${path.basename(data.pdfs[0])}`;
+    models[safeModelName].assets.pdfs[lang] = data.pdfs[0];
+    if (!(await fs.pathExists(pdfPath))) {
+      await downloadFile(data.pdfs[0], `${baseDir}/pdf`);
     }
   }
-  //   if (data.pdfs?.length) {
-  //     for (const pdf of data.pdfs) {
-  //       await downloadFile(pdf, `${baseDir}/pdf`);
-  //     }
-  //   }
+
+  await fs.writeJson(
+    `${baseDir}/${safeModelName}.json`,
+    models[safeModelName],
+    { spaces: 2 }
+  );
 }
 
 /* =========================
